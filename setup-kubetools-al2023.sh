@@ -22,7 +22,49 @@ chmod +x kubectl kubelet kubeadm
 # Move binaries to /usr/local/bin/
 sudo mv kubectl kubelet kubeadm /usr/local/bin/
 
+# Install iptables
+echo "Installing iptables..."
+sudo yum install -y iptables
+
+# Verify iptables installation
+if ! command -v iptables &> /dev/null; then
+    echo "iptables could not be installed. Exiting."
+    exit 1
+fi
+
+echo "iptables installed successfully."
+
+# Register kubelet service
+echo "Registering kubelet service..."
+
+sudo tee /etc/systemd/system/kubelet.service <<EOF
+[Unit]
+Description=kubelet: The Kubernetes Node Agent
+Documentation=https://kubernetes.io/docs/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/kubelet
+Restart=always
+StartLimitInterval=10min
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Reload systemd to apply the new service
+sudo systemctl daemon-reload
+sudo systemctl enable --now kubelet
+
 # Verify installation
+echo "Verifying Kubernetes binaries installation..."
+
 kubectl version --client
 kubelet --version
 kubeadm version
+
+echo "Kubernetes installation and kubelet service setup complete."
